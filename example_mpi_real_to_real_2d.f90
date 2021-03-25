@@ -8,7 +8,7 @@ program example_mpi_real_to_real_2d
    !include 'aslfftw3-mpi.f03'
 
    ! Parameter Definition
-   integer(C_INTPTR_T), parameter :: NR = 10 !number of rows
+   integer(C_INTPTR_T), parameter :: NR = 5 !number of rows
 
    integer(C_INTPTR_T), parameter :: NC = 11 !number of columns
 
@@ -128,28 +128,36 @@ if(myid==2)then
 endif
 
 CALL MPI_BARRIER (MPI_COMM_WORLD, IERR)
-write(*,*)
-write(*,*) 'local_M   =      : ', local_M, 'in', myid, 'of ', nprocs
-write(*,*) 'local_j_offset = : ', local_j_offset, 'in', myid, 'of ', nprocs
+
+local_M = NR * local_M
+rcounts = NR * rcounts
+displs  = NR * displs
+
+call MPI_gatherv (rin,local_M, MPI_REAL8,&
+& rin_all, rcounts, displs,MPI_REAL8,&
+& 0, MPI_COMM_WORLD, ierr)
+
+
+if(myid==0)then
+  write(*,*)"========input========="
+  do i=1,NR
+    do j=1,NC
+      write(*,'(F9.2)',advance='no') rin_all(i,j)
+      enddo
+    write(*,*)
+  enddo
+endif
 
 ! FFT Execution (forward)
 CALL MPI_BARRIER (MPI_COMM_WORLD, IERR)
-
 
 call fftw_mpi_execute_r2r(planf, rin, rout)
 
 CALL MPI_BARRIER (MPI_COMM_WORLD, IERR)
 
 
-CALL MPI_BARRIER (MPI_COMM_WORLD, IERR)
-
-local_M = NR * local_M
-local_j_offset = NR * local_j_offset
-rcounts = NR * rcounts
-displs  = NR * displs
-
-  call MPI_gatherv (rout,local_M, MPI_REAL,&
-  & rout_all, rcounts, displs,MPI_REAL,&
+  call MPI_gatherv (rout,local_M, MPI_REAL8,&
+  & rout_all, rcounts, displs,MPI_REAL8,&
   & 0, MPI_COMM_WORLD, ierr)
 
 ! Print array on root
@@ -157,11 +165,28 @@ if(myid==0)then
   write(*,*)"========forward========="
   do i=1,NR
     do j=1,NC
-      write(*,'(F8.2)',advance='no') rout_all(i,j)
+      write(*,'(F9.2)',advance='no') rout_all(i,j)
       enddo
     write(*,*)
   enddo
 endif
+
+ call fftw_mpi_execute_r2r(planb, rout, rin)
+
+ call MPI_gatherv (rin,local_M, MPI_REAL8,&
+ & rin_all, rcounts, displs,MPI_REAL8,&
+ & 0, MPI_COMM_WORLD, ierr)
+
+ if(myid==0)then
+   write(*,*)"========backward========="
+   do i=1,NR
+     do j=1,NC
+       write(*,'(F9.2)',advance='no') rin_all(i,j)
+       enddo
+     write(*,*)
+   enddo
+ endif
+
 
    ! Memory Deallocation
  deallocate(rin, rout, rin_all, rout_all)
