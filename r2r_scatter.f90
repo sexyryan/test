@@ -1,4 +1,4 @@
-program example_mpi_real_to_real_2d
+program r2r_scatter
 
    use, intrinsic :: iso_c_binding
    implicit none
@@ -98,10 +98,10 @@ program example_mpi_real_to_real_2d
   if (myid==0) then
      do ix = 1, NC
        do iy = 1, NR
-       if (ix>=1 .AND. ix <= 4 ) rin_all(iy,ix) = (1)*1000 + ix*10
-       if (ix>=5 .AND. ix <= 8 ) rin_all(iy,ix) = (2)*1000 + ix*10 - 40
-       if (ix>=9 .AND. ix <= 11) rin_all(iy,ix) = (3)*1000 + ix*10 - 80
-
+      ! if (ix>=1 .AND. ix <= 4 ) rin_all(iy,ix) = (1)*10 + ix
+      ! if (ix>=5 .AND. ix <= 8 ) rin_all(iy,ix) = (2)*10 + ix - 4
+      ! if (ix>=9 .AND. ix <= 11) rin_all(iy,ix) = (3)*10 + ix - 8
+       rin_all(iy,ix) = 1
        end do
      end do
   end if
@@ -166,8 +166,8 @@ call fftw_mpi_execute_r2r(planf, rin, rout)
 CALL MPI_BARRIER (MPI_COMM_WORLD, IERR)
 
 
-  call MPI_gatherv (rout,local_M, MPI_REAL8,&
-  & rout_all, rcounts, displs,MPI_REAL8,&
+  call MPI_gatherv (rout,local_M_n, MPI_REAL8,&
+  & rout_all, rcounts_n, displs_n,MPI_REAL8,&
   & 0, MPI_COMM_WORLD, ierr)
 
 CALL MPI_BARRIER (MPI_COMM_WORLD, IERR)
@@ -183,6 +183,7 @@ if(myid==0)then
   enddo
 endif
 !Finish forward
+CALL MPI_BARRIER (MPI_COMM_WORLD, IERR)
 
 CALL MPI_SCATTERV( rout_all, rcounts_n, displs_n, MPI_REAL8, &
  & rout, local_M_n, MPI_REAL8, &
@@ -247,7 +248,7 @@ endif
  deallocate(rin, rout, rin_all, rout_all)
 
  call MPI_Finalize(ierr)
-end program example_mpi_real_to_real_2d
+end program r2r_scatter
 
 
-!mpif90 -I/usr/local/include -L/usr/local/lib -o r2r example_mpi_real_to_real_2d.f90 -lfftw3_mpi -lfftw3 -lm
+!mpif90 -I/usr/local/include -L/usr/local/lib -o r2r r2r_scatter.f90 -lfftw3_mpi -lfftw3 -lm
